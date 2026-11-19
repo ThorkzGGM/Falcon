@@ -79,7 +79,7 @@ npm start                 # starts the bot
 
 5. Click **Manual Deploy** (or it will auto-deploy).
 
-The bot runs as a **Background Worker** (free plan works fine).
+The bot runs as a **Web Service** (free plan. It listens on process.env.PORT).
 
 > **Important:** After the first deploy, run the slash command deployment once.  
 > Easiest way: temporarily change the start command to `node deploy-commands.js && node index.js`, deploy once, then change it back to `node index.js`.

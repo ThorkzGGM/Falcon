@@ -8,6 +8,7 @@ const {
 } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 
 // ==================== CONFIG ====================
 // Supports both config.json (local) and environment variables (Render / production)
@@ -285,6 +286,16 @@ client.on('interactionCreate', async (interaction) => {
 // ==================== ERROR HANDLING ====================
 client.on('error', console.error);
 process.on('unhandledRejection', console.error);
+
+// ==================== HTTP SERVER (required for Render Web Service) ====================
+const PORT = process.env.PORT || 3000;
+
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Falcon Bot is online ✅');
+}).listen(PORT, () => {
+  console.log(`🌐 HTTP server listening on port ${PORT}`);
+});
 
 // ==================== LOGIN ====================
 client.login(config.token);
