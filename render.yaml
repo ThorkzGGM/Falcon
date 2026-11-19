@@ -1,0 +1,14 @@
+services:
+  - type: worker
+    name: falcon-bot
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      # Add these secrets in the Render Dashboard → Environment:
+      # DISCORD_TOKEN  = your bot token
+      # CLIENT_ID      = your application client id
+      # GUILD_ID       = your discord server id (optional but recommended)
