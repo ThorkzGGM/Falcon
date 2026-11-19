@@ -4,7 +4,11 @@ const {
   Partials,
   EmbedBuilder,
   PermissionFlagsBits,
-  ActivityType
+  ActivityType,
+  REST,
+  Routes,
+  SlashCommandBuilder,
+  ChannelType
 } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
@@ -66,10 +70,76 @@ const client = new Client({
   partials: [Partials.GuildMember]
 });
 
+// ==================== SLASH COMMANDS DEFINITION ====================
+const commands = [
+  new SlashCommandBuilder()
+    .setName('claim')
+    .setDescription('Claim 1 MCFA account (costs 2 invites)'),
+
+  new SlashCommandBuilder()
+    .setName('channel')
+    .setDescription('Set the channel where users can claim rewards (Admin only)')
+    .addChannelOption(opt =>
+      opt.setName('channel')
+        .setDescription('The text channel for claiming')
+        .addChannelTypes(ChannelType.GuildText)
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+  new SlashCommandBuilder()
+    .setName('mcfa')
+    .setDescription('Add an MCFA account to the stock (Admin only)')
+    .addStringOption(opt =>
+      opt.setName('message')
+        .setDescription('The full account message (e.g. Email: xxx | Pass: yyy | Note: ...)')
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+  new SlashCommandBuilder()
+    .setName('invites')
+    .setDescription('Check how many invites you (or someone else) has')
+    .addUserOption(opt =>
+      opt.setName('user')
+        .setDescription('User to check (optional)')
+        .setRequired(false)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('stock')
+    .setDescription('Check how many MCFA accounts are left in stock (Admin only)')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+].map(cmd => cmd.toJSON());
+
 // ==================== READY ====================
 client.once('ready', async () => {
   console.log(`✅ Falcon is online as ${client.user.tag}`);
   client.user.setActivity('Falcon | /claim', { type: ActivityType.Watching });
+
+  // ===== AUTO REGISTER SLASH COMMANDS =====
+  try {
+    const rest = new REST({ version: '10' }).setToken(config.token);
+    const clientId = config.clientId || client.user.id;
+
+    if (config.guildId) {
+      // Guild commands = appear instantly
+      await rest.put(
+        Routes.applicationGuildCommands(clientId, config.guildId),
+        { body: commands }
+      );
+      console.log(`✅ Slash commands registered to guild ${config.guildId}`);
+    } else {
+      // Global commands (can take up to 1 hour)
+      await rest.put(
+        Routes.applicationCommands(clientId),
+        { body: commands }
+      );
+      console.log('✅ Slash commands registered globally');
+    }
+  } catch (err) {
+    console.error('❌ Failed to register slash commands:', err.message);
+  }
 
   // Cache invites for every guild
   for (const guild of client.guilds.cache.values()) {
@@ -234,10 +304,17 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
-  // ---------- /mcfa ----------
+  // ---------- /mcfa (Admin only) ----------
   if (commandName === 'mcfa') {
-    if (!interaction.memberPermissions.has(PermissionFlagsBits.Administrator)) {
-      return interaction.reply({ content: '❌ Only administrators can use this command.', ephemeral: true });
+    // Strict admin check
+    const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) 
+                 || interaction.member?.permissions?.has(PermissionFlagsBits.Administrator);
+
+    if (!isAdmin) {
+      return interaction.reply({ 
+        content: '❌ Only **Administrators** can use `/mcfa`.', 
+        ephemeral: true 
+      });
     }
 
     const message = interaction.options.getString('message', true);
